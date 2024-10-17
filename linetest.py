@@ -1,11 +1,17 @@
-from flask import Flask, request, render_template, redirect, url_for, jsonify
+from flask import Flask, request, render_template, redirect, url_for, jsonify,abort
 from linebot.v3.messaging import Configuration, MessagingApi
 from linebot.v3.messaging import PushMessageRequest
 from linebot.v3.webhook import WebhookHandler
+from linebot.v3.webhook import WebhookParser
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import TextSendMessage, MessageEvent, TextMessage, Sender
 import os
-from flask import abort
+import logging
+from linebot.models import MessageEvent, TextMessage
+
+# ロガーの設定
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
@@ -20,6 +26,7 @@ if not LINE_CHANNEL_ACCESS_TOKEN or not LINE_CHANNEL_SECRET:
 configuration = Configuration(access_token=LINE_CHANNEL_ACCESS_TOKEN)
 line_bot_api = MessagingApi(configuration)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
+parser = WebhookParser('YOUR_CHANNEL_SECRET')
 
 # メッセージを格納するメモリ上のリスト
 messages = []
@@ -35,13 +42,27 @@ def callback():
     signature = request.headers['X-Line-Signature']
     # リクエストボディを取得
     body = request.get_data(as_text=True)
-    app.logger.info("Request body: " + body)
+    logger.info("Request body: %s", body)
 
     # 署名を検証してイベントを処理
     try:
+        events = parser.parse(body, signature)
+        logger.info("Events: %s", events)
+        
+        for event in events:
+            if isinstance(event, MessageEvent):
+                if isinstance(event.message, TextMessage):
+                    logger.info("Received message: %s", event.message.text)
+                    # ここで受信したメッセージを処理できます
+        
         handler.handle(body, signature)
     except InvalidSignatureError:
+        logger.error("Invalid signature")
         abort(400)
+    except Exception as e:
+        logger.error("Error occurred: %s", str(e))
+        abort(500)
+    
     return 'OK'
 
 # メッセージイベントのハンドラー
