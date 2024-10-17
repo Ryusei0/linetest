@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>管理者ページ</title>
+</head>
+<body>
+    <h1>受信メッセージ一覧</h1>
+    <table border="1">
+        <tr>
+            <th>ID</th>
+            <th>ユーザーID</th>
+            <th>メッセージ</th>
+            <th>返信</th>
+        </tr>
+        {% for message in messages %}
+        <tr>
+            <td>{{ message[0] }}</td>
+            <td>{{ message[1] }}</td>
+            <td>{{ message[2] }}</td>
+            <td>
+                <form method="post">
+                    <input type="hidden" name="user_id" value="{{ message[1] }}">
+                    <input type="text" name="reply_message" placeholder="返信内容" required><br>
+                    <input type="text" name="staff_name" placeholder="担当者名（必須）" required><br>
+                    <input type="text" name="staff_icon_url" placeholder="アイコンURL（任意）"><br>
+                    <button type="submit">返信</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

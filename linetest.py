@@ -1,5 +1,6 @@
 from flask import Flask, request, render_template, redirect, url_for
 from linebot.v3.messaging import Configuration, MessagingApi
+from linebot.v3.messaging import PushMessageRequest
 from linebot.v3.webhook import WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import TextSendMessage, MessageEvent, TextMessage, Sender
@@ -33,10 +34,9 @@ def init_db():
 
 init_db()
 
-# ルートパスへのハンドラーを追加
 @app.route('/')
 def home():
-    return 'Hello, this is the LINE Bot server!'
+    return render_template('admin.html')
 
 # ユーザーからのメッセージを受信するエンドポイント
 @app.route("/callback", methods=['POST'])
@@ -73,75 +73,41 @@ def handle_message(event):
         TextSendMessage(text=reply_text)
     )
 
-# 担当者用のメッセージ閲覧・返信ページ
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
     if request.method == 'POST':
         user_id = request.form['user_id']
         reply_message = request.form['reply_message']
         staff_name = request.form['staff_name']
-        staff_icon_url = request.form['staff_icon_url']  # 新たにアイコンURLを取得
-
-        # Senderオブジェクトを作成
-        sender = Sender(
-            name=staff_name,
-            icon_url=staff_icon_url
-        )
+        staff_icon_url = request.form['staff_icon_url']
 
         # ユーザーに返信メッセージを送信
-        line_bot_api.push_message(
-            user_id,
-            TextSendMessage(
-                text=reply_message,
-                sender=sender
+        try:
+            line_bot_api.push_message_with_http_info(
+                PushMessageRequest(
+                    to=user_id,
+                    messages=[TextMessage(
+                        text=reply_message,
+                        sender={
+                            "name": staff_name,
+                            "iconUrl": staff_icon_url
+                        }
+                    )]
+                )
             )
-        )
+        except Exception as e:
+            print(f"メッセージ送信エラー: {e}")
+            # エラー処理を追加することができます
+
         return redirect(url_for('admin'))
 
     # データベースからメッセージを取得
     with sqlite3.connect('messages.db') as conn:
         c = conn.cursor()
-        c.execute("SELECT * FROM messages")
+        c.execute("SELECT * FROM messages ORDER BY id DESC")  # 最新のメッセージを先に表示
         messages = c.fetchall()
     return render_template('admin.html', messages=messages)
 
-# テンプレートの設定（admin.html）
-# 以下はtemplates/admin.htmlの内容です。
-"""
-<!DOCTYPE html>
-<html>
-<head>
-    <title>管理者ページ</title>
-</head>
-<body>
-    <h1>受信メッセージ一覧</h1>
-    <table border="1">
-        <tr>
-            <th>ID</th>
-            <th>ユーザーID</th>
-            <th>メッセージ</th>
-            <th>返信</th>
-        </tr>
-        {% for message in messages %}
-        <tr>
-            <td>{{ message[0] }}</td>
-            <td>{{ message[1] }}</td>
-            <td>{{ message[2] }}</td>
-            <td>
-                <form method="post">
-                    <input type="hidden" name="user_id" value="{{ message[1] }}">
-                    <input type="text" name="reply_message" placeholder="返信内容" required><br>
-                    <input type="text" name="staff_name" placeholder="担当者名（必須）" required><br>
-                    <input type="text" name="staff_icon_url" placeholder="アイコンURL（任意）"><br>
-                    <button type="submit">返信</button>
-                </form>
-            </td>
-        </tr>
-        {% endfor %}
-    </table>
-</body>
-</html>
-"""
 
 if __name__ == "__main__":
     app.run(debug=True)
