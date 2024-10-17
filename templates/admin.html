@@ -2,32 +2,85 @@
 <html>
 <head>
     <title>管理者ページ</title>
+    <meta charset="UTF-8">
+    <style>
+        /* テーブルのスタイルを追加 */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #333;
+            padding: 8px;
+        }
+        th {
+            background-color: #eee;
+        }
+    </style>
+    <!-- JavaScriptを追加 -->
+    <script>
+        // 一定間隔でメッセージを取得してテーブルを更新
+        function fetchMessages() {
+            fetch('/messages')
+                .then(response => response.json())
+                .then(data => {
+                    const tableBody = document.getElementById('message-table-body');
+                    tableBody.innerHTML = ''; // 既存の行をクリア
+
+                    data.forEach(message => {
+                        const row = document.createElement('tr');
+
+                        const idCell = document.createElement('td');
+                        idCell.textContent = message.id;
+                        row.appendChild(idCell);
+
+                        const userIdCell = document.createElement('td');
+                        userIdCell.textContent = message.user_id;
+                        row.appendChild(userIdCell);
+
+                        const messageCell = document.createElement('td');
+                        messageCell.textContent = message.message;
+                        row.appendChild(messageCell);
+
+                        const replyCell = document.createElement('td');
+                        replyCell.innerHTML = `
+                            <form method="post">
+                                <input type="hidden" name="user_id" value="${message.user_id}">
+                                <input type="text" name="reply_message" placeholder="返信内容" required><br>
+                                <input type="text" name="staff_name" placeholder="担当者名（必須）" required><br>
+                                <input type="text" name="staff_icon_url" placeholder="アイコンURL（任意）"><br>
+                                <button type="submit">返信</button>
+                            </form>
+                        `;
+                        row.appendChild(replyCell);
+
+                        tableBody.appendChild(row);
+                    });
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        // ページロード時とその後10秒ごとにメッセージを取得
+        window.onload = function() {
+            fetchMessages();
+            setInterval(fetchMessages, 10000); // 10秒ごとに更新
+        };
+    </script>
 </head>
 <body>
     <h1>受信メッセージ一覧</h1>
-    <table border="1">
-        <tr>
-            <th>ID</th>
-            <th>ユーザーID</th>
-            <th>メッセージ</th>
-            <th>返信</th>
-        </tr>
-        {% for message in messages %}
-        <tr>
-            <td>{{ message[0] }}</td>
-            <td>{{ message[1] }}</td>
-            <td>{{ message[2] }}</td>
-            <td>
-                <form method="post">
-                    <input type="hidden" name="user_id" value="{{ message[1] }}">
-                    <input type="text" name="reply_message" placeholder="返信内容" required><br>
-                    <input type="text" name="staff_name" placeholder="担当者名（必須）" required><br>
-                    <input type="text" name="staff_icon_url" placeholder="アイコンURL（任意）"><br>
-                    <button type="submit">返信</button>
-                </form>
-            </td>
-        </tr>
-        {% endfor %}
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>ユーザーID</th>
+                <th>メッセージ</th>
+                <th>返信</th>
+            </tr>
+        </thead>
+        <tbody id="message-table-body">
+            <!-- メッセージはJavaScriptで動的に挿入 -->
+        </tbody>
     </table>
 </body>
 </html>

@@ -1,10 +1,9 @@
-from flask import Flask, request, render_template, redirect, url_for
+from flask import Flask, request, render_template, redirect, url_for, jsonify
 from linebot.v3.messaging import Configuration, MessagingApi
 from linebot.v3.messaging import PushMessageRequest
 from linebot.v3.webhook import WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import TextSendMessage, MessageEvent, TextMessage, Sender
-import sqlite3
 import os
 from flask import abort
 
@@ -22,27 +21,12 @@ configuration = Configuration(access_token=LINE_CHANNEL_ACCESS_TOKEN)
 line_bot_api = MessagingApi(configuration)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
 
-# データベースの初期化
-def init_db():
-    with sqlite3.connect('messages.db') as conn:
-        c = conn.cursor()
-        c.execute('''CREATE TABLE IF NOT EXISTS messages
-                     (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                      user_id TEXT,
-                      message TEXT)''')
-        conn.commit()
-
-init_db()
+# メッセージを格納するメモリ上のリスト
+messages = []
 
 @app.route('/')
 def home():
-    # データベースからメッセージを取得
-    with sqlite3.connect('messages.db') as conn:
-        c = conn.cursor()
-        c.execute("SELECT * FROM messages ORDER BY id DESC")  # 最新のメッセージを先に表示
-        messages = c.fetchall()
-    return render_template('admin.html', messages=messages)
-
+    return redirect(url_for('admin'))
 
 # ユーザーからのメッセージを受信するエンドポイント
 @app.route("/callback", methods=['POST'])
@@ -66,11 +50,12 @@ def handle_message(event):
     user_id = event.source.user_id
     user_message = event.message.text
 
-    # メッセージをデータベースに保存
-    with sqlite3.connect('messages.db') as conn:
-        c = conn.cursor()
-        c.execute("INSERT INTO messages (user_id, message) VALUES (?, ?)", (user_id, user_message))
-        conn.commit()
+    # メッセージをメモリ上のリストに保存
+    messages.append({
+        'id': len(messages) + 1,
+        'user_id': user_id,
+        'message': user_message
+    })
 
     # ユーザーに自動返信（必要に応じて）
     reply_text = "メッセージを受け付けました。担当者からの返信をお待ちください。"
@@ -107,13 +92,12 @@ def admin():
 
         return redirect(url_for('admin'))
 
-    # データベースからメッセージを取得
-    with sqlite3.connect('messages.db') as conn:
-        c = conn.cursor()
-        c.execute("SELECT * FROM messages ORDER BY id DESC")  # 最新のメッセージを先に表示
-        messages = c.fetchall()
     return render_template('admin.html', messages=messages)
 
+# メッセージをJSONで返すAPIエンドポイント（AJAX用）
+@app.route('/messages')
+def get_messages():
+    return jsonify(messages)
 
 if __name__ == "__main__":
     app.run(debug=True)
