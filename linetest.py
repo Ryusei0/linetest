@@ -36,7 +36,13 @@ init_db()
 
 @app.route('/')
 def home():
-    return render_template('admin.html')
+    # データベースからメッセージを取得
+    with sqlite3.connect('messages.db') as conn:
+        c = conn.cursor()
+        c.execute("SELECT * FROM messages ORDER BY id DESC")  # 最新のメッセージを先に表示
+        messages = c.fetchall()
+    return render_template('admin.html', messages=messages)
+
 
 # ユーザーからのメッセージを受信するエンドポイント
 @app.route("/callback", methods=['POST'])
