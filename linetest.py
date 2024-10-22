@@ -36,24 +36,8 @@ messages = []
 def home():
     return redirect(url_for('admin'))
 
-@app.route("/callback", methods=['POST'])
-def callback():
-    logger.info("Callback function started")
-    
-    # リクエストヘッダーから署名を取得
-    signature = request.headers.get('X-Line-Signature', None)
-    if signature is None:
-        logger.warning("X-Line-Signature header is missing")
-        return 'OK'  # Webhook検証リクエストの場合、即座に200 OKを返す
-
-    logger.info(f"Received signature: {signature}")
-    
-    # リクエストボディを取得
-    body = request.get_data(as_text=True)
-    logger.info(f"Received request body: {body}")
-    
-    @handler.add(MessageEvent, message=TextMessage)
-    def handle_message(event):
+@handler.add(MessageEvent, message=TextMessage)
+def handle_message(event):
      user_id = event.source.user_id
      user_message = event.message.text
      logger.info("Received message: %s", event.message.text)
@@ -71,6 +55,22 @@ def callback():
         event.reply_token,
         TextSendMessage(text=reply_text)
     )
+
+@app.route("/callback", methods=['POST'])
+def callback():
+    logger.info("Callback function started")
+    
+    # リクエストヘッダーから署名を取得
+    signature = request.headers.get('X-Line-Signature', None)
+    if signature is None:
+        logger.warning("X-Line-Signature header is missing")
+        return 'OK'  # Webhook検証リクエストの場合、即座に200 OKを返す
+
+    logger.info(f"Received signature: {signature}")
+    
+    # リクエストボディを取得
+    body = request.get_data(as_text=True)
+    logger.info(f"Received request body: {body}")
     # webhookイベントをパース
     try:
         handler.handle(body, signature)
