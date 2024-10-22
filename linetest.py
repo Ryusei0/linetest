@@ -52,6 +52,25 @@ def callback():
     body = request.get_data(as_text=True)
     logger.info(f"Received request body: {body}")
     
+    @handler.add(MessageEvent, message=TextMessage)
+    def handle_message(event):
+     user_id = event.source.user_id
+     user_message = event.message.text
+     logger.info("Received message: %s", event.message.text)
+
+    # メッセージをメモリ上のリストに保存
+     messages.append({
+        'id': len(messages) + 1,
+        'user_id': user_id,
+        'message': user_message
+    })
+
+    # ユーザーに自動返信
+     reply_text = "メッセージを受け付けました。担当者からの返信をお待ちください。"
+     line_bot_api.reply_message(
+        event.reply_token,
+        TextSendMessage(text=reply_text)
+    )
     # webhookイベントをパース
     try:
         handler.handle(body, signature)
