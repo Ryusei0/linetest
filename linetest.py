@@ -27,7 +27,7 @@ if not LINE_CHANNEL_ACCESS_TOKEN or not LINE_CHANNEL_SECRET:
 configuration = Configuration(access_token=LINE_CHANNEL_ACCESS_TOKEN)
 line_bot_api = MessagingApi(configuration)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
-parser = WebhookParser('YOUR_CHANNEL_SECRET')
+parser = WebhookParser(LINE_CHANNEL_SECRET)
 
 # メッセージを格納するメモリ上のリスト
 messages = []
@@ -48,12 +48,17 @@ def callback():
     body = request.get_data(as_text=True)
     logger.info(f"Received request body: {body}")
     
+    # チャンネルシークレットのログ出力（本番環境では削除してください）
+    logger.info(f"Channel secret: {parser.channel_secret}")
+    
     # webhookイベントをパース
     try:
         events = parser.parse(body, signature)
         logger.info(f"Parsed {len(events)} events")
-    except InvalidSignatureError:
-        logger.error("Invalid signature detected")
+    except InvalidSignatureError as e:
+        logger.error(f"Invalid signature detected: {str(e)}")
+        logger.error(f"Signature: {signature}")
+        logger.error(f"Body: {body}")
         abort(400)
 
     for event in events:
