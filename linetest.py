@@ -1,7 +1,15 @@
 from flask import Flask, request, render_template, redirect, url_for, jsonify, abort
-from linebot.v3.messaging import Configuration, MessagingApi, PushMessageRequest, TextSendMessage
-from linebot.v3.webhook import WebhookHandler, MessageEvent, TextMessage
-from linebot.exceptions import InvalidSignatureError
+from linebot.v3 import WebhookHandler
+from linebot.v3.exceptions import InvalidSignatureError
+from linebot.v3.webhooks import MessageEvent
+from linebot.v3.messaging import (
+    Configuration,
+    ApiClient,
+    MessagingApi,
+    ReplyMessageRequest,
+    TextMessage
+)
+from linebot.v3.messaging import PushMessageRequest
 import os
 import logging
 
@@ -20,8 +28,10 @@ if not LINE_CHANNEL_ACCESS_TOKEN or not LINE_CHANNEL_SECRET:
     raise ValueError("LINE_CHANNEL_ACCESS_TOKEN と LINE_CHANNEL_SECRET の環境変数を設定してください。")
 
 configuration = Configuration(access_token=LINE_CHANNEL_ACCESS_TOKEN)
-line_bot_api = MessagingApi(configuration)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
+
+with ApiClient(configuration) as api_client:
+    line_bot_api = MessagingApi(api_client)
 
 # メッセージを格納するメモリ上のリスト
 messages = []
@@ -64,7 +74,7 @@ def callback():
 def handle_message(event):
     user_id = event.source.user_id
     user_message = event.message.text
-    logger.info("Received message: %s", event.message.text)
+    logger.info(f"Received message from {user_id}: {user_message}")
 
     # メッセージをメモリ上のリストに保存
     messages.append({
@@ -76,8 +86,10 @@ def handle_message(event):
     # ユーザーに自動返信
     reply_text = "メッセージを受け付けました。担当者からの返信をお待ちください。"
     line_bot_api.reply_message(
-        event.reply_token,
-        TextSendMessage(text=reply_text)
+        ReplyMessageRequest(
+            reply_token=event.reply_token,
+            messages=[TextMessage(text=reply_text)]
+        )
     )
 
 @app.route('/admin', methods=['GET', 'POST'])
