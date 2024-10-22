@@ -36,7 +36,6 @@ messages = []
 def home():
     return redirect(url_for('admin'))
 
-# ユーザーからのメッセージを受信するエンドポイント
 @app.route("/callback", methods=['POST'])
 def callback():
     # リクエストヘッダーから署名を取得
@@ -47,26 +46,6 @@ def callback():
 
     # 署名を検証してイベントを処理
     try:
-        events = parser.parse(body, signature)
-        logger.info("Events: %s", events)
-        
-        for event in events:
-            if isinstance(event, MessageEvent):
-                message = event.message
-                logger.info("メッセージタイプ: %s", type(message).__name__)
-                
-                if isinstance(message, TextMessage):
-                    logger.info("テキストメッセージ: %s", message.text)
-                else:
-                    logger.info("その他のメッセージタイプを受信しました")
-
-        
-        for event in events:
-            if isinstance(event, MessageEvent):
-                if isinstance(event.message, TextMessage):
-                    logger.info("Received message: %s", event.message.text)
-                    # ここで受信したメッセージを処理できます
-        
         handler.handle(body, signature)
     except InvalidSignatureError:
         logger.error("Invalid signature")
@@ -82,6 +61,7 @@ def callback():
 def handle_message(event):
     user_id = event.source.user_id
     user_message = event.message.text
+    logger.info("Received message: %s", event.message.text)
 
     # メッセージをメモリ上のリストに保存
     messages.append({
