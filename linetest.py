@@ -1,14 +1,9 @@
-from flask import Flask, request, render_template, redirect, url_for, jsonify,abort
-from linebot.v3.messaging import Configuration, MessagingApi
-from linebot.v3.messaging import PushMessageRequest
-from linebot.v3.webhook import WebhookHandler
-from linebot.v3.webhook import WebhookParser
+from flask import Flask, request, render_template, redirect, url_for, jsonify, abort
+from linebot.v3.messaging import Configuration, MessagingApi, PushMessageRequest, TextSendMessage
+from linebot.v3.webhook import WebhookHandler, MessageEvent, TextMessage
 from linebot.exceptions import InvalidSignatureError
-from linebot.models import TextSendMessage, MessageEvent, TextMessage, Sender
 import os
 import logging
-from linebot.models import MessageEvent, TextMessage
-
 
 # ロガーの設定
 logging.basicConfig(level=logging.INFO)
@@ -27,7 +22,6 @@ if not LINE_CHANNEL_ACCESS_TOKEN or not LINE_CHANNEL_SECRET:
 configuration = Configuration(access_token=LINE_CHANNEL_ACCESS_TOKEN)
 line_bot_api = MessagingApi(configuration)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
-parser = WebhookParser(LINE_CHANNEL_SECRET)
 
 # メッセージを格納するメモリ上のリスト
 messages = []
@@ -35,26 +29,6 @@ messages = []
 @app.route('/')
 def home():
     return redirect(url_for('admin'))
-
-@handler.add(MessageEvent, message=TextMessage)
-def handle_message(event):
-     user_id = event.source.user_id
-     user_message = event.message.text
-     logger.info("Received message: %s", event.message.text)
-
-    # メッセージをメモリ上のリストに保存
-     messages.append({
-        'id': len(messages) + 1,
-        'user_id': user_id,
-        'message': user_message
-    })
-
-    # ユーザーに自動返信
-     reply_text = "メッセージを受け付けました。担当者からの返信をお待ちください。"
-     line_bot_api.reply_message(
-        event.reply_token,
-        TextSendMessage(text=reply_text)
-    )
 
 @app.route("/callback", methods=['POST'])
 def callback():
@@ -71,7 +45,8 @@ def callback():
     # リクエストボディを取得
     body = request.get_data(as_text=True)
     logger.info(f"Received request body: {body}")
-    # webhookイベントをパース
+    
+    # webhookイベントをパースして処理
     try:
         handler.handle(body, signature)
         logger.info("Events handled successfully")
@@ -84,7 +59,6 @@ def callback():
     
     logger.info("Callback function completed successfully")
     return 'OK'
-
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
@@ -105,7 +79,6 @@ def handle_message(event):
         event.reply_token,
         TextSendMessage(text=reply_text)
     )
-
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
