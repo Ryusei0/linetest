@@ -38,22 +38,62 @@ def home():
 
 @app.route("/callback", methods=['POST'])
 def callback():
+    logger.info("Callback function started")
+    
     # リクエストヘッダーから署名を取得
     signature = request.headers['X-Line-Signature']
+    logger.info(f"Received signature: {signature}")
+    
     # リクエストボディを取得
     body = request.get_data(as_text=True)
-    logger.info("Request body: %s", body)
+    logger.info(f"Received request body: {body}")
+    
+    # webhookイベントをパース
+    try:
+        events = parser.parse(body, signature)
+        logger.info(f"Parsed {len(events)} events")
+    except InvalidSignatureError:
+        logger.error("Invalid signature detected")
+        abort(400)
+
+    for event in events:
+        logger.info(f"Processing event type: {event.type}")
+        if event.type == 'message':
+            user_id = event.source.user_id
+            logger.info(f"Received message from user: {user_id}")
+            
+            staff_name = "灘波竜星"
+            reply_message = f"ありがとうございます。ご返信お待ちください。"
+            logger.info(f"Preparing reply message: {reply_message}")
+            
+            try:
+                response = line_bot_api.push_message_with_http_info(
+                    PushMessageRequest(
+                        to=user_id,
+                        messages=[TextMessage(
+                            text=reply_message,
+                            sender={
+                                "name": staff_name,
+                            }
+                        )]
+                    )
+                )
+                logger.info(f"Push message sent successfully. Response: {response}")
+            except Exception as e:
+                logger.error(f"Error sending push message: {str(e)}")
 
     # 署名を検証してイベントを処理
     try:
         handler.handle(body, signature)
+        logger.info("Events handled successfully")
     except InvalidSignatureError:
-        logger.error("Invalid signature")
+        logger.error("Invalid signature detected during event handling")
         abort(400)
     except Exception as e:
-        logger.error("Error occurred: %s", str(e))
+        logger.error(f"Error occurred during event handling: {str(e)}")
         abort(500)
-    
+
+    logger.info("Callback function completed successfully")
     return 'OK'
 
 # メッセージイベントのハンドラー
