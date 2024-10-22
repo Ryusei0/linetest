@@ -41,53 +41,18 @@ def callback():
     logger.info("Callback function started")
     
     # リクエストヘッダーから署名を取得
-    signature = request.headers['X-Line-Signature']
+    signature = request.headers.get('X-Line-Signature', None)
+    if signature is None:
+        logger.warning("X-Line-Signature header is missing")
+        return 'OK'  # Webhook検証リクエストの場合、即座に200 OKを返す
+
     logger.info(f"Received signature: {signature}")
     
     # リクエストボディを取得
     body = request.get_data(as_text=True)
     logger.info(f"Received request body: {body}")
     
-    # チャンネルシークレットのログ出力（本番環境では削除してください）
-    logger.info(f"Channel secret: {parser.channel_secret}")
-    
     # webhookイベントをパース
-    try:
-        events = parser.parse(body, signature)
-        logger.info(f"Parsed {len(events)} events")
-    except InvalidSignatureError as e:
-        logger.error(f"Invalid signature detected: {str(e)}")
-        logger.error(f"Signature: {signature}")
-        logger.error(f"Body: {body}")
-        abort(400)
-
-    for event in events:
-        logger.info(f"Processing event type: {event.type}")
-        if event.type == 'message':
-            user_id = event.source.user_id
-            logger.info(f"Received message from user: {user_id}")
-            
-            staff_name = "灘波竜星"
-            reply_message = f"ありがとうございます。ご返信お待ちください。"
-            logger.info(f"Preparing reply message: {reply_message}")
-            
-            try:
-                response = line_bot_api.push_message_with_http_info(
-                    PushMessageRequest(
-                        to=user_id,
-                        messages=[TextMessage(
-                            text=reply_message,
-                            sender={
-                                "name": staff_name,
-                            }
-                        )]
-                    )
-                )
-                logger.info(f"Push message sent successfully. Response: {response}")
-            except Exception as e:
-                logger.error(f"Error sending push message: {str(e)}")
-
-    # 署名を検証してイベントを処理
     try:
         handler.handle(body, signature)
         logger.info("Events handled successfully")
@@ -97,11 +62,11 @@ def callback():
     except Exception as e:
         logger.error(f"Error occurred during event handling: {str(e)}")
         abort(500)
-
+    
     logger.info("Callback function completed successfully")
     return 'OK'
 
-# メッセージイベントのハンドラー
+
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_id = event.source.user_id
@@ -115,12 +80,13 @@ def handle_message(event):
         'message': user_message
     })
 
-    # ユーザーに自動返信（必要に応じて）
+    # ユーザーに自動返信
     reply_text = "メッセージを受け付けました。担当者からの返信をお待ちください。"
     line_bot_api.reply_message(
         event.reply_token,
         TextSendMessage(text=reply_text)
     )
+
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
