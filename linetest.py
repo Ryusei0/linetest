@@ -9,6 +9,7 @@ import os
 import logging
 from linebot.models import MessageEvent, TextMessage
 
+
 # ロガーの設定
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -48,6 +49,17 @@ def callback():
     try:
         events = parser.parse(body, signature)
         logger.info("Events: %s", events)
+        
+        for event in events:
+            if isinstance(event, MessageEvent):
+                message = event.message
+                logger.info("メッセージタイプ: %s", type(message).__name__)
+                
+                if isinstance(message, TextMessage):
+                    logger.info("テキストメッセージ: %s", message.text)
+                else:
+                    logger.info("その他のメッセージタイプを受信しました")
+
         
         for event in events:
             if isinstance(event, MessageEvent):
