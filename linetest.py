@@ -74,6 +74,7 @@ def handle_message(event):
     user_id = event.source.user_id
     user_message = event.message.text
     logger.info(f"Received message from {user_id}: {user_message}")
+    staff_name="灘波竜星"
 
     # メッセージをメモリ上のリストに保存
     messages.append({
@@ -87,7 +88,11 @@ def handle_message(event):
     line_bot_api.reply_message(
         ReplyMessageRequest(
             reply_token=event.reply_token,
-            messages=[TextMessage(text=reply_text)]
+            messages=[TextMessage(text=reply_text,
+                        sender={
+                            "name": staff_name,
+                        }
+                    )]
         )
     )
 
