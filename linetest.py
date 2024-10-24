@@ -1,13 +1,13 @@
 from flask import Flask, request, render_template, redirect, url_for, jsonify, abort
 from linebot.v3 import WebhookHandler
 from linebot.v3.exceptions import InvalidSignatureError
-from linebot.v3.webhooks import MessageEvent
+from linebot.v3.webhooks import MessageEvent,TextMessageContent
 from linebot.v3.messaging import (
     Configuration,
     ApiClient,
     MessagingApi,
     ReplyMessageRequest,
-    TextMessage
+    TextMessage,
 )
 from linebot.v3.messaging import PushMessageRequest
 import os
@@ -29,9 +29,6 @@ if not LINE_CHANNEL_ACCESS_TOKEN or not LINE_CHANNEL_SECRET:
 
 configuration = Configuration(access_token=LINE_CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
-
-with ApiClient(configuration) as api_client:
-    line_bot_api = MessagingApi(api_client)
 
 # メッセージを格納するメモリ上のリスト
 messages = []
@@ -70,8 +67,10 @@ def callback():
     logger.info("Callback function completed successfully")
     return 'OK'
 
-@handler.add(MessageEvent, message=TextMessage)
+@handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
+    with ApiClient(configuration) as api_client:
+     line_bot_api = MessagingApi(api_client)
     user_id = event.source.user_id
     user_message = event.message.text
     logger.info(f"Received message from {user_id}: {user_message}")
@@ -95,6 +94,8 @@ def handle_message(event):
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
     if request.method == 'POST':
+        with ApiClient(configuration) as api_client:
+         line_bot_api = MessagingApi(api_client)
         user_id = request.form['user_id']
         reply_message = request.form['reply_message']
         staff_name = request.form['staff_name']
@@ -126,6 +127,8 @@ def admin():
 @app.route('/messages')
 def get_messages():
     return jsonify(messages)
+
+
 
 if __name__ == "__main__":
     app.run(debug=True)
